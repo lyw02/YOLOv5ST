@@ -245,6 +245,52 @@ class SPPF(nn.Module):
             return self.cv2(torch.cat((x, y1, y2, self.m(y2)), 1))
 
 
+class SPPG(nn.Module):
+    # Concatenate a list of tensors along dimension
+    def __init__(self, c1, c2, dimension=1, k=3):
+        super().__init__()
+        self.d = dimension
+        self.mp1 = nn.MaxPool2d(kernel_size=k, stride=4, padding=k // 2)
+        self.mp2 = nn.MaxPool2d(kernel_size=k, stride=2, padding=k // 2)
+        self.mp3 = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
+        self.ap1 = nn.AvgPool2d(kernel_size=k, stride=4, padding=k // 2)
+        self.ap2 = nn.AvgPool2d(kernel_size=k, stride=2, padding=k // 2)
+        self.ap3 = nn.AvgPool2d(kernel_size=k, stride=1, padding=k // 2)
+        self.cv = nn.Conv2d(896, 1024, 1, 1)
+
+    def forward(self, x):
+        # return torch.cat(x, self.d)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')  # suppress torch 1.9.0 max_pool2d() warning
+            pool1 = torch.cat([self.mp1(x[0]), self.mp2(x[1]), self.mp3(x[2])], self.d)
+            pool2 = torch.cat([self.ap1(x[0]), self.ap2(x[1]), self.ap3(x[2])], self.d)
+            pool = pool1 + pool2
+            return pool
+
+
+class C2DWSeq(nn.Module):
+    # CSP Bottleneck with 2 convolutions
+    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
+        super().__init__()
+        self.c = int(c2 * e)  # hidden channels
+        self.cv1 = DWConv(c1, 2 * self.c, 1, 1)
+        self.cv2 = DWConv(self.c, c2, 1)  # optional act=FReLU(c2)
+        self.m = nn.Sequential(*(Bottleneck(2 * self.c, self.c, shortcut, g, e=1.0) for _ in range(n)))
+
+    def forward(self, x):
+        return self.cv2(self.m(self.cv1(x)))
+
+
+class Concat3(nn.Module):
+    def __init__(self, dimension=1):
+        super(Concat3, self).__init__()
+        self.d = dimension
+
+    def forward(self, x):
+        # Fast normalized fusion
+        return torch.cat([x[0], x[1], x[2]], self.d)
+
+
 class Focus(nn.Module):
     # Focus wh information into c-space
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
