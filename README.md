@@ -4,10 +4,10 @@ __Abstract:__ Scene text detection is an important task in computer vision. In t
 
 __When training, set --cfg as yolov5st.yaml__
 
-![img_6.png](img_6.png)
+![Fig1](./public/Fig1.png)
 
-![img_4.png](img_4.png)
+![Fig2](./public/Fig2.png)
 
-![img_3.png](img_3.png)
+![Fig3](./public/Fig3.png)
 
-![img_7.png](img_7.png)
+![Fig4](./public/Fig4.png)
